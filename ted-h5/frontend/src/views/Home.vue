@@ -6,6 +6,7 @@ import { useUserStore } from '../stores/user'
 import { useArticleStore } from '../stores/article'
 import { useCheckinStore } from '../stores/checkin'
 import { articles } from '../api'
+import { getDailyQuote, hotTopics } from '../utils/quotes'
 
 const router = useRouter()
 const userStore = useUserStore()
@@ -18,6 +19,7 @@ const isRegister = ref(false)
 const activeTab = ref(0)
 const refreshing = ref(false)
 const dailyArticle = ref(null)
+const dailyQuote = computed(() => getDailyQuote())
 
 const tabs = [
   { name: 'recommend', title: '推荐' },
@@ -86,6 +88,10 @@ function goAIPlan() {
   router.push('/ai-plan')
 }
 
+function goTopic(topic) {
+  showToast(`浏览 "${topic.label}" 话题`)
+}
+
 async function handleLogin() {
   try {
     if (isRegister.value) {
@@ -118,6 +124,31 @@ function onTabChange(name) {
           <van-icon name="fire-o" size="24" color="#ff6b35" @click="goCheckin" />
         </div>
         <p style="font-size:13px; color:#969799; margin-top:4px;">每日一篇，中英双语精读</p>
+      </div>
+
+      <!-- Daily quote -->
+      <div class="daily-quote-card">
+        <div class="quote-icon">"</div>
+        <div class="quote-text">{{ dailyQuote.text }}</div>
+        <div class="quote-cn">{{ dailyQuote.cn }}</div>
+        <div class="quote-author">—— {{ dailyQuote.author }} · {{ dailyQuote.talk }}</div>
+      </div>
+
+      <!-- Hot topics -->
+      <div class="hot-topics-section">
+        <div class="section-title" style="margin-top:0;">热门 TED 话题</div>
+        <div class="hot-topics-scroll">
+          <div
+            v-for="topic in hotTopics"
+            :key="topic.id"
+            class="topic-tag"
+            :style="{ background: topic.color + '18', color: topic.color, borderColor: topic.color + '30' }"
+            @click="goTopic(topic)"
+          >
+            <span class="topic-icon">{{ topic.icon }}</span>
+            <span>{{ topic.label }}</span>
+          </div>
+        </div>
       </div>
 
       <!-- Daily article highlight -->
