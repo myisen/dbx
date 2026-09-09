@@ -210,10 +210,10 @@ function onTabChange(name) {
         </van-tab>
       </van-tabs>
 
-      <!-- Article list -->
+      <!-- Article list (show max 3) -->
       <van-skeleton :row="3" :loading="articleStore.loading" v-for="n in 3" :key="n" style="margin-bottom:12px;" />
 
-      <div v-for="item in articleStore.articleList" :key="item._id" class="article-card" @click="goReading(item._id)">
+      <div v-for="item in articleStore.articleList.slice(0, 3)" :key="item._id" class="article-card" @click="goReading(item._id)">
         <div class="cover">
           <span>{{ item.title?.charAt(0) || 'T' }}</span>
         </div>

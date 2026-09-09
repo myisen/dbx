@@ -3,6 +3,7 @@ const express = require('express')
 const cors = require('cors')
 const connectDB = require('./config/db')
 const Article = require('./models/Article')
+const User = require('./models/User')
 
 const app = express()
 const PORT = process.env.PORT || 3001
@@ -137,10 +138,33 @@ async function seedData() {
   console.log(`Seeded ${articles.length} articles`)
 }
 
+// Seed default user
+async function seedUser() {
+  const count = await User.countDocuments()
+  if (count > 0) {
+    console.log(`Users already exist: ${count}`)
+    return
+  }
+
+  // Default account: demo / demo123
+  const user = new User({
+    nickname: 'demo',
+    password: 'demo123',
+    currentStreak: 7,
+    longestStreak: 15,
+    totalCheckins: 23,
+    totalWords: 230,
+    lastCheckinDate: new Date()
+  })
+  await user.save()
+  console.log(`Seeded default user: demo / demo123`)
+}
+
 // Start server
 async function start() {
   await connectDB()
   await seedData()
+  await seedUser()
   app.listen(PORT, () => {
     console.log(`Server running on http://localhost:${PORT}`)
   })
