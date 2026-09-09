@@ -37,6 +37,16 @@ const moods = [
   { value: 'bad', label: '困难', icon: 'warning-o' }
 ]
 
+// Make-up check-in state
+const showMakeup = ref(false)
+const makeupContent = ref('')
+const makeupNotes = ref('')
+const makeupMood = ref('good')
+const makeupWords = ref('')
+const makeupMinutes = ref(30)
+const selectedDate = ref('')
+const selectedDateLabel = ref('')
+
 onMounted(async () => {
   if (!userStore.isLoggedIn) {
     router.push('/home')
@@ -44,6 +54,7 @@ onMounted(async () => {
   }
   await checkinStore.fetchToday()
   await checkinStore.fetchStreak()
+  await checkinStore.fetchMissed()
   await fetchHistory()
   await fetchCalendar(calendarYear.value, calendarMonth.value)
 })
@@ -112,6 +123,40 @@ async function submitCheckin() {
 
 function goReading() {
   router.push('/home')
+}
+
+function openMakeup(date, label) {
+  selectedDate.value = date
+  selectedDateLabel.value = label
+  makeupContent.value = ''
+  makeupNotes.value = ''
+  makeupMood.value = 'good'
+  makeupWords.value = ''
+  makeupMinutes.value = 30
+  showMakeup.value = true
+}
+
+async function submitMakeup() {
+  if (!makeupContent.value.trim()) {
+    showToast('请输入补卡内容')
+    return
+  }
+  try {
+    const res = await checkinStore.submitMakeup({
+      content: makeupContent.value,
+      notes: makeupNotes.value,
+      mood: makeupMood.value,
+      studyMinutes: makeupMinutes.value,
+      wordsLearned: parseInt(makeupWords.value) || 0,
+      targetDate: selectedDate.value
+    })
+    showSuccessToast(`补卡成功！连续打卡 ${res.streak.current} 天`)
+    showMakeup.value = false
+    await fetchCalendar(calendarYear.value, calendarMonth.value)
+    await fetchHistory()
+  } catch {
+    // handled by interceptor
+  }
 }
 
 function prevMonth() {
@@ -228,6 +273,32 @@ function getFirstDayOfMonth(year, month) {
         </div>
         <van-empty v-if="!historyLoading && checkinHistory.length === 0" description="暂无打卡记录" />
       </div>
+
+      <!-- Make-up check-in section -->
+      <div v-if="checkinStore.missedDates.length > 0" style="text-align:left; margin-top:24px;">
+        <div class="section-title" style="text-align:left;">
+          补卡
+          <span style="font-size:12px; color:#969799; font-weight:400;">（可补最近7天）</span>
+        </div>
+        <div class="missed-list">
+          <div
+            v-for="item in checkinStore.missedDates"
+            :key="item.date"
+            class="missed-item"
+            @click="openMakeup(item.date, item.label)"
+          >
+            <div class="missed-left">
+              <van-icon name="underway-o" size="20" color="#ee0a24" />
+              <span class="missed-label">{{ item.label }}</span>
+              <span class="missed-date">{{ item.date }}</span>
+            </div>
+            <div class="missed-action">
+              <span style="color:#1989fa; font-size:13px;">去补卡</span>
+              <van-icon name="arrow" size="14" color="#1989fa" />
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- Checkin form -->
@@ -284,6 +355,47 @@ function getFirstDayOfMonth(year, month) {
       </van-button>
     </div>
 
+    <!-- Make-up check-in dialog -->
+    <van-action-sheet v-model:show="showMakeup" :title="`补卡 - ${selectedDateLabel}`" closeable>
+      <div style="padding: 16px;">
+        <div class="checkin-card" style="margin-bottom:12px;">
+          <van-field
+            v-model="makeupContent"
+            type="textarea"
+            rows="4"
+            maxlength="500"
+            show-word-limit
+            placeholder="为这一天写下你的学习心得..."
+            :rules="[{ required: true, message: '请输入内容' }]"
+          />
+        </div>
+        <div class="checkin-card" style="margin-bottom:12px;">
+          <van-field v-model="makeupWords" type="digit" label="新词数" placeholder="如: 10" />
+          <van-field v-model="makeupMinutes" type="digit" label="学习时长(分钟)" placeholder="如: 30" />
+          <div style="margin-top:8px;">
+            <div style="font-size:13px; color:#666; margin-bottom:8px;">心情</div>
+            <div style="display:flex; gap:12px;">
+              <div v-for="m in moods" :key="m.value" class="mood-item" :class="{ active: makeupMood === m.value }" @click="makeupMood = m.value">
+                <van-icon :name="m.icon" :size="20" :color="makeupMood === m.value ? '#1989fa' : '#969799'" />
+                <span style="font-size:11px; margin-top:2px;">{{ m.label }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <van-field v-model="makeupNotes" type="textarea" rows="2" maxlength="200" show-word-limit placeholder="备注（可选）..." />
+        <van-button
+          type="primary"
+          block
+          round
+          :loading="checkinStore.makeupLoading"
+          @click="submitMakeup"
+          style="margin-top: 12px; height: 44px;"
+        >
+          提交补卡
+        </van-button>
+      </div>
+    </van-action-sheet>
+
     <!-- Share poster -->
     <SharePoster
       :visible="showShare"
@@ -333,5 +445,50 @@ function getFirstDayOfMonth(year, month) {
   background: #1989fa;
   color: white;
   border: 2px solid #07c160;
+}
+.calendar-day.makeup {
+  background: #07c160;
+  color: white;
+  opacity: 0.8;
+}
+
+/* Missed dates list */
+.missed-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.missed-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #fff;
+  border-radius: 8px;
+  padding: 12px 16px;
+  border: 1px solid #ebedf0;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.missed-item:active {
+  background: #f5f5f5;
+  transform: scale(0.98);
+}
+.missed-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.missed-label {
+  font-size: 14px;
+  font-weight: 500;
+}
+.missed-date {
+  font-size: 12px;
+  color: #969799;
+}
+.missed-action {
+  display: flex;
+  align-items: center;
+  gap: 4px;
 }
 </style>

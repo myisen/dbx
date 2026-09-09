@@ -49,7 +49,9 @@ export const checkins = {
   list: (params) => api.get('/checkins', { params }),
   today: () => api.get('/checkins/today'),
   streak: () => api.get('/checkins/streak'),
-  calendar: (params) => api.get('/checkins/calendar', { params })
+  calendar: (params) => api.get('/checkins/calendar', { params }),
+  missed: () => api.get('/checkins/missed'),
+  makeup: (data) => api.post('/checkins/makeup', data)
 }
 
 // Leaderboard

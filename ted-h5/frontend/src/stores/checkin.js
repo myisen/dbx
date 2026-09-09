@@ -6,7 +6,9 @@ export const useCheckinStore = defineStore('checkin', {
     todayCheckin: null,
     streak: { current: 0, longest: 0 },
     calendar: [],
-    checkinList: []
+    checkinList: [],
+    missedDates: [],
+    makeupLoading: false
   }),
   getters: {
     hasCheckedInToday: (state) => !!state.todayCheckin,
@@ -35,6 +37,26 @@ export const useCheckinStore = defineStore('checkin', {
     async fetchList(params) {
       const res = await checkins.list(params)
       this.checkinList = res.checkins
+    },
+    async fetchMissed() {
+      try {
+        const res = await checkins.missed()
+        this.missedDates = res.missedDates || []
+        return res
+      } catch {
+        this.missedDates = []
+      }
+    },
+    async submitMakeup(data) {
+      this.makeupLoading = true
+      try {
+        const res = await checkins.makeup(data)
+        await this.fetchStreak()
+        await this.fetchMissed()
+        return res
+      } finally {
+        this.makeupLoading = false
+      }
     }
   }
 })
